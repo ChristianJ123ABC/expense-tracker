@@ -22,3 +22,11 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run tests
         run: python -m pytest
+    env:
+      MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
+      MYSQL_USER: ${{ secrets.MYSQL_USER }}
+      MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      MYSQL_DB: ${{ secrets.MYSQL_DB }}
+      MYSQL_PORT: ${{ secrets.MYSQL_PORT }}
+      MYSQL_CHARSET: utf8mb4
+      
