@@ -17,8 +17,6 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
-
-#Used to make MySQLDB Work
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     default-libmysqlclient-dev \
@@ -55,4 +53,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the application.
-CMD gunicorn 'backend.server:app' --bind=0.0.0.0:8000
+CMD gunicorn 'server:app' --bind=0.0.0.0:5000
