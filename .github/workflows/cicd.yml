@@ -1,5 +1,5 @@
 name: CICD
-run-name: CI/CD Pipeline
+
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Backend
     runs-on: ubuntu-latest
     defaults:
       run:
