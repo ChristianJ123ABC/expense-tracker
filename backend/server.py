@@ -64,7 +64,9 @@ def emailExists(email):
 def home():
     return render_template("home.html")
 
-#REGISTER PAGE
+####
+#       USER AUTHENTICATION
+####
 @app.route("/register", methods=["GET", "POST"])
 def register():
     
@@ -105,6 +107,10 @@ def register():
             flash("Account Created.", "alert-success")
             return render_template("login.html")
 
+@app.route("/login", methods=["GET","POST"])
+def login():
+    if "user_id" in session:
+        flash("")
         
 
 
