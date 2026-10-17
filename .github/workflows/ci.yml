@@ -31,4 +31,5 @@ jobs:
       MYSQL_DB: ${{ secrets.MYSQL_DB }}
       MYSQL_PORT: ${{ secrets.MYSQL_PORT }}
       MYSQL_CHARSET: utf8mb4
+      SECRET_KEY: ${{ secrets.SECRET_KEY}}
       
