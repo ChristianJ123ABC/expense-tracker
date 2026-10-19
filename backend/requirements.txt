@@ -4,5 +4,3 @@ flask-mysqldb
 python-dotenv
 pytest
 werkzeug
-os
-re
