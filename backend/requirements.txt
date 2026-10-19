@@ -4,3 +4,6 @@ flask-mysqldb
 python-dotenv
 pytest
 werkzeug
+random
+os
+re
