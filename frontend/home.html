@@ -40,13 +40,9 @@
     </nav>
 
     <div class = "flash">
-        {% with messages = get_flashed_messages(with_categories = true)%}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class = "alert-{{ category }}"><h2>{{ message }}</h2></div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        {% for category, message in get_flashed_messages(with_categories = true) %}
+            <div class = "alert-{{ category }}"><h2>{{ message }}</h2></div>
+        {% endfor %}
     </div>
 
     <h1> hi </h1>

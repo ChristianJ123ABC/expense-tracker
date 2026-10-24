@@ -11,7 +11,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-B/GM4XqrwHnWXNOWMbloTmrYXZg10cakYGmpfsR/bbzQ6JAJI4ihuyADKLnBgrCe" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body id = home>
+<body id = register>
 
     <nav class="navbar bg-info bg-90">
         <div class="container-fluid">
@@ -34,13 +34,9 @@
     </nav>
 
     <div class = "flash">
-        {% with messages = get_flashed_messages(with_categories = true)%}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class = "alert-{{ category }}"><h2>{{ message }}</h2></div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        {% for category, message in get_flashed_messages(with_categories = true) %}
+            <div class = "alert-{{ category }}"><h2>{{ message }}</h2></div>
+        {% endfor %}
     </div>
 
 

@@ -1,0 +1,92 @@
+<!-- Sources -->
+<!-- NAVBAR: 
+  https://getbootstrap.com/docs/6.0/examples/
+ https://getbootstrap.com/docs/6.0/components/nav-overflow/
+ https://www.w3schools.com/howto/howto_css_topnav_centered.asp
+ -->
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions</title>
+
+    <!-- Links for the bootstrap and CSS file-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-B/GM4XqrwHnWXNOWMbloTmrYXZg10cakYGmpfsR/bbzQ6JAJI4ihuyADKLnBgrCe" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body id = transactions>
+
+    <nav class="navbar bg-info bg-90">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard">Expense Tracker</a>
+            <button class="btn-icon navbar-toggler" type="button" data-bs-toggle="drawer" data-bs-target="#navbarTogglerDemo02" aria-controls="navbarTogglerDemo02" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon" aria-hidden="true"></span>
+            </button>
+            <dialog class="drawer drawer-end" tabindex="-1" id="navbarTogglerDemo02" aria-labelledby="navbarTogglerDemo02Label">
+                <div class="drawer-header">
+                    <h5 class="drawer-title" id="navbarTogglerDemo02Label">Menu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="drawer" aria-label="Close"></button>
+                </div>
+                <div class="drawer-body">
+                    <ul class="navbar-nav me-auto mb-2">
+                        <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="/transactions">Transactions</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/categories">Categories</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/logout">Log Out</a></li>
+                    </ul>
+                </div>
+            </dialog>
+        </div>
+    </nav>
+
+    <div class = "flash">
+        {% for category, message in get_flashed_messages(with_categories = true) %}
+            <div class = "alert-{{ category }}"><h2>{{ message }}</h2></div>
+        {% endfor %}
+    </div>
+
+    <h1>Transactions</h1>
+
+    <!-- Adding Transaction-->
+    {% if categories %}
+        <form method = "POST" action="{{ url_for('transactions')}}">
+            <input type = "text" name = "description" placeholder = "Description (e.g. Centra for category, Week)" class="form-control" required>
+            <input type = "number" name="amount" placeholder = "Amount" step = "0.01" min="0.01" class="form-control" required>
+            <span>{{ base_currency }}</span> <!--NOTE: CHANGE TO CUSTOM CURRENCY ONCE LIBRARY IS DONE-->
+            <input type = "date" name="transaction_date" value = "{{ today }}" class="form-control" required>
+            <select name = "category_id" class="form-control">
+                {% for c in categories %}
+                    <option value = "{{ c.id }}">{{ c.name }} ({{ c.type }})</option>
+                {% endfor %}
+            </select>
+            <button>Add Transaction</button>
+        </form>
+        {% else %}
+            <p>Add a <a href="/categories">category</a> first, then you can add transactions</p>
+        {% endif %}
+
+    <!-- List of Transactions-->
+    <table>
+        <tr><th>Date</th><th>Description</th><th>Category</th><th>Type</th><th>Amount</th><th></th></tr>
+        {% for t in transactions %}
+        <tr>
+            <td>{{ t.transaction_date.strftime("%d/%m/%Y") }}</td>
+            <td>{{ t.description }}</td>
+            <td>{{ t.category }}</td>
+            <td>{{ t.type }}</td>
+            <td>{{ "%.2f" |format(t.amount)  }} {{ t.currency }}</td>
+            <td>
+                <form method="POST" action="/transactions/{{ t.id }}/delete">
+                    <button>Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+
+    <script type="module" src="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-1a/pXj49ZQ1aHEmrJ+gMw1otqoVsYwlEnlD8mIfY2TV03r20Y0CN7uqx1tQogjPL" crossorigin="anonymous"></script>
+</body>
+</html>
