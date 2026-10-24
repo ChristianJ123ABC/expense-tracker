@@ -8,12 +8,20 @@
 #https://stackoverflow.com/questions/59380641/how-to-display-full_name-in-multiple-pages-using-flask
 #https://stackoverflow.com/questions/37227780/flask-session-persisting-after-close-browser
 
-import os, random, werkzeug, gunicorn, re 
+#CRUD
+#https://www.freecodecamp.org/news/build-smart-expense-tracker-with-python-and-llms/
+#https://medium.com/@chayasonidurg/building-a-smart-personal-expense-tracker-using-python-cd1b25fe6249
+#Finding current month and the next: https://stackoverflow.com/questions/37396329/finding-first-day-of-the-month-in-python
+#Converting text into money / decimal https://stackoverflow.com/questions/3887469/python-how-to-convert-currency-to-decimal
+
+import os, random, werkzeug, gunicorn, re, datetime
+from datetime import date
 from flask import Flask, render_template, redirect, url_for, request, session, flash 
 from flask_mysqldb import MySQL 
 from datetime import timedelta
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
+from decimal import Decimal
 
 load_dotenv(override=True)
 
@@ -30,8 +38,12 @@ app.config["MYSQL_PORT"] = int(os.environ.get("MYSQL_PORT"))
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 app.config["MYSQL_CHARSET"] = "utf8mb4"
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
-
+CURRENCY = "EUR" #base currency (NOTE: change in library.py)
 mysql = MySQL(app)
+
+@app.route("/")
+def home():
+    return render_template("home.html")
 
 @app.route("/test")
 def test():
@@ -45,8 +57,12 @@ def database_check():
     cursor.close()
     return "Database Work"
 
-#Input / Form Validations
-
+# - - - - - - - - 
+#  FUNCTIONS FOR VALIDATIONS / FEATURES
+# - - - - - - - - 
+# # #
+# Input / Form Validations
+# # #
 #Format: mail@domain.com / firstname.surname@domain.co.uk
 def isEmailValid(email):
     return re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email)
@@ -58,17 +74,64 @@ def emailExists(email):
      cursor.close()
      return user
 
+
 # # #
-#       HOME PAGE 
+# EXPENSE TRACKER FUNCTIONS
 # # #
-@app.route("/")
-def home():
-    return render_template("home.html")
+#Checks if money is in a decimal format (e.g. 50.45)
+def validAmount(text):
+    amount = Decimal(text).quantize(Decimal(0.01))
+    if amount <= 0 or amount > Decimal ("999999999.99"):
+        return None
+
+    return amount
+
+def validDate(text):
+    return datetime.strptime(text, "%m-%d-%Y").date()
+
+def categoryBelongsToUser(categoryId,userId):
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT id FROM categories WHERE id = %s AND user_id = %s", (categoryId, userId))
+    category = cursor.fetchone()
+    cursor.close()
+    return category
+
+def categoryExists(userId, name, categoryType):
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT id FROm categories WHERE user_id = %s AND name = %s AND type = %s", (userId, name, categoryType))
+    category = cursor.fetchone()
+    cursor.close()
+    return category
+
+#adds up the current month's income / expenses for the user
+def monthTotal(userId, categoryType):
+    today = date.today()
+    firstDay = today.replace(day=1)
+    lastDay = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT SUM(t.amount_base) AS total FROM transactions t JOIN categories c ON c.id = t.category_id  "
+                   "WHERE t.user_id = %s AND c.type = %s AND t.transaction_date BETWEEN %s AND %s", 
+                   (userId, categoryType, firstDay, lastDay))
+    row = cursor.fetchone()
+    cursor.close()
+    return row["total"] or 0
 
 
 
+
+
+
+
+
+
+# - - - - - - - - 
+# FUNCTIONALITY OF THE PROJECT 
+# - - - - - - - - 
+
+
 # # #
-#       USER AUTHENTICATION (Register, Login)
+#       USER AUTHENTICATION (Register, Login, Logout)
 # # #
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -130,9 +193,16 @@ def login():
             session.permament = True
             flash("Successfully logged in.", "success")
             return redirect(url_for("dashboard"))
+    
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
 
 # # #
-#          DASHBOARD
+#          DASHBOARD (Breakdown of this month's income, expenses and balances)
 # # #
 @app.route("/dashboard")
 def dashboard():
@@ -142,12 +212,26 @@ def dashboard():
         return redirect(url_for("login"))
 
     else:
-      return render_template("dashboard.html")
+        userId = session["user_id"]
+        income = monthTotal(userId, "income")
+        expenses = monthTotal(userId, "expense")
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
+        #Spending per category of the current month
+        today = date.today()
+        firstDay = today.replace(day=1)
+        lastDay = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+
+        cursor = mysql.connection.cursor()
+        cursor.execute("SELECT c.name, SUM(t.amount_base) AS total FROM transactions t JOIN categories c ON c.id = t.category_id "
+                       "WHERE t.user_id = %s AND c.type = 'expense' AND t.transaction_date BETWEEN %s AND %s "
+                       "GROUP BY c.name ORDER BY total DESC", (userId, firstDay, lastDay))
+        byCategory = cursor.fetchall()
+        cursor.close()
+
+        return render_template("dashboard.html", income=income, expenses=expenses, balance=income-expenses, by_category=byCategory, month_label=today.strftime("%B %Y"), base_currency=CURRENCY)
+
+
+
 
 if __name__ == "__main__":
     app.run(debug=True, host = "0.0.0.0", port=5000)
