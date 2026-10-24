@@ -202,7 +202,7 @@ def logout():
 
 
 # # #
-#          DASHBOARD (Breakdown of this month's income, expenses and balances)
+#    DASHBOARD (Breakdown of this month's income, expenses and balances)
 # # #
 @app.route("/dashboard")
 def dashboard():
@@ -230,7 +230,68 @@ def dashboard():
 
         return render_template("dashboard.html", income=income, expenses=expenses, balance=income-expenses, by_category=byCategory, month_label=today.strftime("%B %Y"), base_currency=CURRENCY)
 
+# # #
+#     CATEGORIES (ORDER: VIEW / ADD, DELETE)
+# # #
+@app.route("/categories", methods=["GET", "POST"])
+def categories():
+    if "user_id" not in session:
+        flash("You need to be logged in to see this page", "danger")
+        return redirect(url_for("login"))
 
+    userId = session["user_id"]
+
+    if request.method == "POST":
+        name = request.form["name"].strip()
+        categoryType = request.form["type"]
+
+        if len(name) < 1 or len(name) > 50:
+            flash("Name must be between 1 and 50 characters", "danger")
+
+        elif categoryType not in ("income", "expense"):
+            flash("Invalid category: choose income or expense.", "danger")
+
+        else:
+            cursor = mysql.connection.cursor()
+            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (userId, name, categoryType))
+            mysql.connection.commit()
+            cursor.close()
+            flash("Category added.", "success")
+
+        return redirect(url_for("categories"))
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId,))
+    rows = cursor.fetchall()
+    cursor.close()
+    return render_template("categories.html", categories, rows)
+
+
+@app.route("/categories/<int:category_id>/delete", methods=["POST"])
+def delete_category(category_id):
+    if "user_id" not in session:
+        flash("Please log in to access this page.", "danger")
+        return redirect(url_for("login"))
+
+    userId = session["user_id"]
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT COUNT(*) AS total FROM transactions WHERE category_id = %s AND user_id = %s", (category_id, userId))
+    used = cursor.fetchone()["total"]
+
+    if not categoryBelongsToUser(category_id, userId):
+        flash("category not found", "danger")
+
+    elif used > 0:
+        flash("That category has transactions. Delete them first.", "danger")
+
+    else:
+        cursor.execute("DELETE FROM categories WHERE id = %s AND user_id = %s", (category_id, userId))
+        mysql.connection.commit()
+        flash("Category deleted.","success")
+
+    cursor.close()
+    return redirect(url_for("categories"))
 
 
 if __name__ == "__main__":
