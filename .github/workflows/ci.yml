@@ -22,9 +22,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y build-essential default-libmysqlclient-dev pkg-config
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: change to backend directory
-        run: cd backend
-      - name: run pytests
+      - name: Run tests
         run: python -m pytest
     env:
       MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
