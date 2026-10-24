@@ -20,4 +20,4 @@ COPY . .
 
 USER appuser
 
-CMD gunicorn server:app --bind 0.0.0.0:${PORT:-8000}
+CMD gunicorn backend:app --bind 0.0.0.0:${PORT:-8000}

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 
-from backend.backend import app as create_app
+from backend import app as create_app
 
 @pytest.fixture()
 def app():
