@@ -204,7 +204,7 @@ def login():
         else:
             session["user_id"] = user["id"]
             session["email"] = user["email"]
-            session.permament = True
+            session.permanent = True
             flash("Successfully logged in.", "success")
             return redirect(url_for("dashboard"))
     
