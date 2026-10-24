@@ -375,7 +375,7 @@ def delete_transaction(transaction_id):
     return redirect(url_for("transactions"))
 
 
-@app.route("/transactions/<int: transaction_id>/edit", methods=["GET", "POST"])
+@app.route("/transactions/<int:transaction_id>/edit", methods=["GET", "POST"])
 def edit_transaction(transaction_id):
     if "user_id" not in session:
         flash("You need to be logged in to see this page.", "danger")
