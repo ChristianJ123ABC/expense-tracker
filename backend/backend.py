@@ -14,8 +14,8 @@
 #Finding current month and the next: https://stackoverflow.com/questions/37396329/finding-first-day-of-the-month-in-python
 #Converting text into money / decimal https://stackoverflow.com/questions/3887469/python-how-to-convert-currency-to-decimal
 
-import os, random, werkzeug, gunicorn, re, datetime
-from datetime import date
+import os, random, werkzeug, gunicorn, re, datetime, calendar
+from datetime import date, datetime
 from flask import Flask, render_template, redirect, url_for, request, session, flash 
 from flask_mysqldb import MySQL 
 from datetime import timedelta
@@ -38,12 +38,16 @@ app.config["MYSQL_PORT"] = int(os.environ.get("MYSQL_PORT"))
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 app.config["MYSQL_CHARSET"] = "utf8mb4"
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=15)
 CURRENCY = "EUR" #base currency (NOTE: change in library.py)
 mysql = MySQL(app)
 
 @app.route("/")
 def home():
-    return render_template("home.html")
+    if "user_id" in session:
+        return render_template("dashboard.html")
+    else:
+        return render_template("home.html")
 
 @app.route("/test")
 def test():
@@ -80,14 +84,14 @@ def emailExists(email):
 # # #
 #Checks if money is in a decimal format (e.g. 50.45)
 def validAmount(text):
-    amount = Decimal(text).quantize(Decimal(0.01))
-    if amount <= 0 or amount > Decimal ("999999999.99"):
+    amount = Decimal(text).quantize(Decimal("0.01"))
+    if amount <= 0 or amount > Decimal ("1000000000.00"): #Maximum: 1 billion
         return None
 
     return amount
 
 def validDate(text):
-    return datetime.strptime(text, "%m-%d-%Y").date()
+    return datetime.strptime(text, "%Y-%m-%d").date()
 
 def categoryBelongsToUser(categoryId,userId):
     cursor = mysql.connection.cursor()
@@ -222,9 +226,9 @@ def dashboard():
         lastDay = today.replace(day=calendar.monthrange(today.year, today.month)[1])
 
         cursor = mysql.connection.cursor()
-        cursor.execute("SELECT c.name, SUM(t.amount_base) AS total FROM transactions t JOIN categories c ON c.id = t.category_id "
-                       "WHERE t.user_id = %s AND c.type = 'expense' AND t.transaction_date BETWEEN %s AND %s "
-                       "GROUP BY c.name ORDER BY total DESC", (userId, firstDay, lastDay))
+        cursor.execute("""SELECT c.name, SUM(t.amount_base) AS total FROM transactions t JOIN categories c ON c.id = t.category_id 
+                       WHERE t.user_id = %s AND c.type = 'expense' AND t.transaction_date BETWEEN %s AND %s 
+                       GROUP BY c.name ORDER BY total DESC""", (userId, firstDay, lastDay))
         byCategory = cursor.fetchall()
         cursor.close()
 
@@ -264,7 +268,7 @@ def categories():
     cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId,))
     rows = cursor.fetchall()
     cursor.close()
-    return render_template("categories.html", categories, rows)
+    return render_template("categories.html", categories=rows)
 
 
 @app.route("/categories/<int:category_id>/delete", methods=["POST"])
@@ -328,15 +332,15 @@ def transactions():
                            "VALUES (%s, %s, %s, %s, %s, %s, %s)", (userId, categoryId, description, amount, CURRENCY, amount, transactionDate))
             mysql.connection.commit()
             cursor.close()
-            flash("Transaction added.", "danger")
+            flash("Transaction added.", "success")
 
         return redirect(url_for("transactions"))
 
     
     cursor = mysql.connection.cursor()
-    cursor.execute("SELECT t.id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category, c.type"
-                   "FROM transactions t JOIN categories c ON c.id = t.category_id"
-                   "WHERE t.user_id = %s ORDER BY t.transaction_date DESC, t.id DESC LIMIT 100", (userId,))
+    cursor.execute("""SELECT t.id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category, c.type 
+                    FROM transactions t JOIN categories c ON c.id = t.category_id 
+                    WHERE t.user_id = %s ORDER BY t.transaction_date DESC, t.id DESC LIMIT 100""", (userId,))
     rows = cursor.fetchall()
     cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId,))
     categoryRows = cursor.fetchall()
