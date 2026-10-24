@@ -13,11 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN adduser --disabled-password --gecos "" --home "/nonexistent" --shell "/sbin/nologin" --no-create-home --uid 10001 appuser
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY backend/ backend/
+COPY frontend/ frontend/
 
 USER appuser
+
+WORKDIR /app/backend
 
 CMD gunicorn backend:app --bind 0.0.0.0:${PORT:-8000}
