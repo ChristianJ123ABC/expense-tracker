@@ -13,6 +13,9 @@
 #https://medium.com/@chayasonidurg/building-a-smart-personal-expense-tracker-using-python-cd1b25fe6249
 #Finding current month and the next: https://stackoverflow.com/questions/37396329/finding-first-day-of-the-month-in-python
 #Converting text into money / decimal https://stackoverflow.com/questions/3887469/python-how-to-convert-currency-to-decimal
+#https://www.youtube.com/watch?v=xzUpX6eiOiQ
+
+#
 
 import os, random, werkzeug, gunicorn, re, datetime, calendar
 from datetime import date, datetime
@@ -45,7 +48,7 @@ mysql = MySQL(app)
 @app.route("/")
 def home():
     if "user_id" in session:
-        return render_template("dashboard.html")
+        return redirect(url_for("dashboard"))
     else:
         return render_template("home.html")
 
@@ -234,6 +237,8 @@ def dashboard():
 
         return render_template("dashboard.html", income=income, expenses=expenses, balance=income-expenses, by_category=byCategory, month_label=today.strftime("%B %Y"), base_currency=CURRENCY)
 
+
+
 # # #
 #     CATEGORIES (ORDER: VIEW / ADD, DELETE)
 # # #
@@ -254,6 +259,9 @@ def categories():
 
         elif categoryType not in ("income", "expense"):
             flash("Invalid category: choose income or expense.", "danger")
+
+        elif categoryExists(userId, name, categoryType):
+            flash("Category already exists.", "danger")
 
         else:
             cursor = mysql.connection.cursor()
@@ -299,7 +307,7 @@ def delete_category(category_id):
 
 
 # # #
-#     TRANSACTIONS (order: VIEW/ADD, DELETE)
+#     TRANSACTIONS (order: VIEW/ADD, DELETE, EDIT)
 # # #
 @app.route("/transactions", methods = ["GET", "POST"])
 def transactions():
@@ -365,6 +373,58 @@ def delete_transaction(transaction_id):
 
     cursor.close()
     return redirect(url_for("transactions"))
+
+
+@app.route("/transactions/<int: transaction_id>/edit", methods=["GET", "POST"])
+def edit_transaction(transaction_id):
+    if "user_id" not in session:
+        flash("You need to be logged in to see this page.", "danger")
+
+    userId = session["user_id"]
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT id, description, amount, category_id, transaction_date FROM transactions WHERE id = %s AND user_id = %s",
+                   transaction_id, userId)
+    transaction = cursor.fetchone()
+
+    if not transaction():
+        cursor.close()
+        flash("Transaction not found", "danger")
+        return redirect(url_for("transactions"))
+
+    if request.method == "POST":
+        description = request.form["description"].strip()
+        categoryId = request.form["category_id"]
+        amount = validAmount(request.form["amount"])
+        transactionDate = validDate(request.form["transaction_data"])
+
+        #Validation Checks
+        if amount is None or transactionDate is None:
+            flash("Enter a valid amount and date", "danger")
+
+        elif len(description) < 1 or len(description) > 255:
+            flash("Invalid description length.", "danger")
+
+        elif not categoryBelongsToUser(categoryId, userId):
+            flash("This category does not belong to you", "danger")
+
+        else:
+            #NOTE: amount_base = amount until currency convert is implemented
+            cursor.execute("UPDATE transactions SET category_id = %s, description = %s, amount = %s, amount_base = %s, transaction_date = %s "
+                           "WHERE id = %s AND user_id = %s", (categoryId, description, amount, amount, transactionDate, transaction_id, userId))
+            mysql.connection.commit()
+            cursor.close()
+            flash("Transaction updated.", "success")
+            return redirect(url_for("transactions"))
+
+        cursor.close()
+        return redirect(url_for("edit_transaction", transaction_id = transaction_id))
+
+    cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId))
+    categoryRows = cursor.fetchall()
+    cursor.close()
+
+    return render_template("edit_transaction.html", transaction=transaction, categories=categoryRows, base_currency=CURRENCY)
 
 if __name__ == "__main__":
     app.run(debug=True, host = "0.0.0.0", port=5000)
