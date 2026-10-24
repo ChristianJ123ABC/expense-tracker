@@ -19,7 +19,7 @@ load_dotenv(override=True)
 
 #Creates base directory to join to templates
 directory =  os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-app = Flask(__name__, template_folder=os.path.join(directory,"frontend"))
+app = Flask(__name__, template_folder=os.path.join(directory,"frontend"), static_folder=os.path.join(directory,"frontend/static"))
 
 
 app.config["MYSQL_HOST"] = os.environ["MYSQL_HOST"]
@@ -28,8 +28,7 @@ app.config["MYSQL_PASSWORD"] = os.environ["MYSQL_PASSWORD"]
 app.config["MYSQL_DB"] = os.environ["MYSQL_DB"]
 app.config["MYSQL_PORT"] = int(os.environ.get("MYSQL_PORT"))
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
-app.config["MYSQL_CHARSET"] = "utf8mb4" #ALWAYS USE: Used to make files compatible when comparing to existing ones. (existingFile function)
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=15)
+app.config["MYSQL_CHARSET"] = "utf8mb4"
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
 
 mysql = MySQL(app)
@@ -59,14 +58,18 @@ def emailExists(email):
      cursor.close()
      return user
 
-
+# # #
+#       HOME PAGE 
+# # #
 @app.route("/")
 def home():
     return render_template("home.html")
 
-####
-#       USER AUTHENTICATION
-####
+
+
+# # #
+#       USER AUTHENTICATION (Register, Login)
+# # #
 @app.route("/register", methods=["GET", "POST"])
 def register():
     
@@ -83,20 +86,12 @@ def register():
         hashPass = generate_password_hash(password)
 
         #Input Validation
-        if not isEmailValid(email):
-            flash("Invalid email format: (mail@domain.com / name.surname@domain.co.uk)", "alert-danger")
+        if emailExists(email) or not isEmailValid(email):
+            flash("Invalid email format: (mail@domain.com / name.surname@domain.co.uk)", "danger") 
             return render_template("register.html")
 
-        elif emailExists(email):
-            flash("Email already in use", "alert-danger")
-            return render_template("register.html")
-
-        elif len(password) < 8:
-            flash("Password is too short: use between 8 and 30 characters")
-            return render_template("register.html")
-
-        elif len(password) > 30:
-            flash("Password is too long: use between 8 and 30 characters")
+        elif len(password) < 8 or len(password) > 30:
+            flash("Invalid length: use between 8 and 30 characters")
             return render_template("register.html")
 
         else:
@@ -110,10 +105,49 @@ def register():
 @app.route("/login", methods=["GET","POST"])
 def login():
     if "user_id" in session:
-        flash("")
-        
+        flash("You are already logged in", "warning")
+        return redirect(url_for("dashboard"))
 
+    if request.method == "GET":
+        return render_template("login.html")
 
+    else:
+        email = request.form["email"]
+        password = request.form["password"]
+
+        cursor = mysql.connection.cursor()
+        cursor.execute("SELECT id, email, password_hash FROM users where email = %s", (email,))
+        user = cursor.fetchone()
+        cursor.close()
+
+        if not user or not check_password_hash(user["password_hash"], password):
+            flash("Invalid email address or password.", "danger")
+            return render_template("login.html")
+
+        else:
+            session["user_id"] = user["id"]
+            session["email"] = user["email"]
+            session.permament = True
+            flash("Successfully logged in.", "success")
+            return redirect(url_for("dashboard"))
+
+# # #
+#          DASHBOARD
+# # #
+@app.route("/dashboard")
+def dashboard():
+
+    if "user_id" not in session:
+        flash("Please log in to access this page.", "danger")
+        return redirect(url_for("login"))
+
+    else:
+      return render_template("dashboard.html")
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 if __name__ == "__main__":
     app.run(debug=True, host = "0.0.0.0", port=5000)

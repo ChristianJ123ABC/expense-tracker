@@ -1,0 +1,38 @@
+
+/*!-- https://blog.teclado.com/flashing-messages-with-flask/ Flash Messages-->
+      https://getbootstrap.com/docs/6.0/examples/heroes/
+*/
+
+
+/*Flash Message Styling
+*/
+.alert {
+  padding: 12px;
+  border-radius: 3px;
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.alert-success {
+    border-color: #28a745;  
+    background-color:#f8f8f8
+} 
+.alert-danger { 
+    border-color: solid darkred;
+    background-color: red;
+    color: white;
+}
+.alert-warning { 
+    border-color: #ffc107;
+    background-color: black;
+ } 
+
+
+
+
+
+body{
+    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
+}
