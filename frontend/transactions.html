@@ -43,7 +43,7 @@
 
     <div class = "flash">
         {% for category, message in get_flashed_messages(with_categories = true) %}
-            <div class = "alert-{{ category }}"><h2>{{ message }}</h2></div>
+            <div class = "alert alert-{{ category }}"><h2>{{ message }}</h2></div>
         {% endfor %}
     </div>
 
@@ -77,6 +77,11 @@
             <td>{{ t.category }}</td>
             <td>{{ t.type }}</td>
             <td>{{ "%.2f" |format(t.amount)  }} {{ t.currency }}</td>
+            <td>
+                <form action="/transactions/{{ t.id }}/edit">
+                    <button>Edit</button>
+                </form>
+            </td>
             <td>
                 <form method="POST" action="/transactions/{{ t.id }}/delete">
                     <button>Delete</button>

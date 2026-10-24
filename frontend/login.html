@@ -35,7 +35,7 @@
 
     <div class = "flash">
         {% for category, message in get_flashed_messages(with_categories = true) %}
-            <div class = "alert-{{ category }}"><h2>{{ message }}</h2></div>
+            <div class = "alert alert-{{ category }}"><h2>{{ message }}</h2></div>
         {% endfor %}
     </div>
 

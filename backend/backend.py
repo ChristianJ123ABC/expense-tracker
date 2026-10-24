@@ -15,7 +15,7 @@
 #Converting text into money / decimal https://stackoverflow.com/questions/3887469/python-how-to-convert-currency-to-decimal
 #https://www.youtube.com/watch?v=xzUpX6eiOiQ
 
-#
+
 
 import os, random, werkzeug, gunicorn, re, datetime, calendar
 from datetime import date, datetime
@@ -85,6 +85,8 @@ def emailExists(email):
 # # #
 # EXPENSE TRACKER FUNCTIONS
 # # #
+
+
 #Checks if money is in a decimal format (e.g. 50.45)
 def validAmount(text):
     amount = Decimal(text).quantize(Decimal("0.01"))
@@ -110,19 +112,23 @@ def categoryExists(userId, name, categoryType):
     cursor.close()
     return category
 
+
 #adds up the current month's income / expenses for the user
 def monthTotal(userId, categoryType):
     today = date.today()
     firstDay = today.replace(day=1)
-    lastDay = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    lastDay = today.replace(day=calendar.monthrange(today.year, today.month)[1]) #monthrange()[1] = number of days in the month
 
     cursor = mysql.connection.cursor()
+
+    #Join Categories and Transactions table to get the category_id and it's type (income or expense)
     cursor.execute("SELECT SUM(t.amount_base) AS total FROM transactions t JOIN categories c ON c.id = t.category_id  "
                    "WHERE t.user_id = %s AND c.type = %s AND t.transaction_date BETWEEN %s AND %s", 
                    (userId, categoryType, firstDay, lastDay))
+    
     row = cursor.fetchone()
     cursor.close()
-    return row["total"] or 0
+    return row["total"] or 0 #0 is for no rows available
 
 
 
@@ -190,6 +196,7 @@ def login():
         user = cursor.fetchone()
         cursor.close()
 
+        #Validation
         if not user or not check_password_hash(user["password_hash"], password):
             flash("Invalid email address or password.", "danger")
             return render_template("login.html")
@@ -227,14 +234,17 @@ def dashboard():
         today = date.today()
         firstDay = today.replace(day=1)
         lastDay = today.replace(day=calendar.monthrange(today.year, today.month)[1])
-
+        
         cursor = mysql.connection.cursor()
+
+        #GROUP BY c.name places the rows into a pile per category and ORDER BY DESC lists the biggest category first
         cursor.execute("""SELECT c.name, SUM(t.amount_base) AS total FROM transactions t JOIN categories c ON c.id = t.category_id 
                        WHERE t.user_id = %s AND c.type = 'expense' AND t.transaction_date BETWEEN %s AND %s 
                        GROUP BY c.name ORDER BY total DESC""", (userId, firstDay, lastDay))
         byCategory = cursor.fetchall()
         cursor.close()
 
+        #Passes the money variables into the dashboard to be displayed
         return render_template("dashboard.html", income=income, expenses=expenses, balance=income-expenses, by_category=byCategory, month_label=today.strftime("%B %Y"), base_currency=CURRENCY)
 
 
@@ -254,6 +264,7 @@ def categories():
         name = request.form["name"].strip()
         categoryType = request.form["type"]
 
+        #Validation
         if len(name) < 3 or len(name) > 50:
             flash("Name must be between 3 and 50 characters", "danger")
 
@@ -272,6 +283,7 @@ def categories():
 
         return redirect(url_for("categories"))
 
+    #Displays a specific user's categorys
     cursor = mysql.connection.cursor()
     cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId,))
     rows = cursor.fetchall()
@@ -323,6 +335,7 @@ def transactions():
         amount = validAmount(request.form["amount"])
         transactionDate = validDate(request.form["transaction_date"])
 
+        #Validation
         if amount is None or transactionDate is None:
             flash("Enter a valid amount and date.", "danger")
 
@@ -346,6 +359,9 @@ def transactions():
 
     
     cursor = mysql.connection.cursor()
+
+    #Retrieves the 100 newest transactions that have been placed into the database per user
+    #JOIN helps with giving these transactions their category name and type
     cursor.execute("""SELECT t.id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category, c.type 
                     FROM transactions t JOIN categories c ON c.id = t.category_id 
                     WHERE t.user_id = %s ORDER BY t.transaction_date DESC, t.id DESC LIMIT 100""", (userId,))
@@ -354,6 +370,7 @@ def transactions():
     categoryRows = cursor.fetchall()
     cursor.close()
 
+    #Date Format: (YYYY-MM-DD)
     return render_template("transactions.html", transactions=rows, categories=categoryRows, base_currency=CURRENCY, today=date.today().isoformat())
 
 @app.route("/transactions/<int:transaction_id>/delete", methods=["POST"])
@@ -384,10 +401,10 @@ def edit_transaction(transaction_id):
 
     cursor = mysql.connection.cursor()
     cursor.execute("SELECT id, description, amount, category_id, transaction_date FROM transactions WHERE id = %s AND user_id = %s",
-                   transaction_id, userId)
+                   (transaction_id, userId))
     transaction = cursor.fetchone()
 
-    if not transaction():
+    if not transaction:
         cursor.close()
         flash("Transaction not found", "danger")
         return redirect(url_for("transactions"))
@@ -396,7 +413,7 @@ def edit_transaction(transaction_id):
         description = request.form["description"].strip()
         categoryId = request.form["category_id"]
         amount = validAmount(request.form["amount"])
-        transactionDate = validDate(request.form["transaction_data"])
+        transactionDate = validDate(request.form["transaction_date"])
 
         #Validation Checks
         if amount is None or transactionDate is None:
@@ -410,6 +427,8 @@ def edit_transaction(transaction_id):
 
         else:
             #NOTE: amount_base = amount until currency convert is implemented
+
+            #Updates the user's transaction
             cursor.execute("UPDATE transactions SET category_id = %s, description = %s, amount = %s, amount_base = %s, transaction_date = %s "
                            "WHERE id = %s AND user_id = %s", (categoryId, description, amount, amount, transactionDate, transaction_id, userId))
             mysql.connection.commit()
@@ -420,7 +439,8 @@ def edit_transaction(transaction_id):
         cursor.close()
         return redirect(url_for("edit_transaction", transaction_id = transaction_id))
 
-    cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId))
+    #Sends back the updated categories to the dashboard
+    cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId,))
     categoryRows = cursor.fetchall()
     cursor.close()
 
