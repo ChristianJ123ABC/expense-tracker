@@ -98,7 +98,7 @@ def categoryBelongsToUser(categoryId,userId):
 
 def categoryExists(userId, name, categoryType):
     cursor = mysql.connection.cursor()
-    cursor.execute("SELECT id FROm categories WHERE user_id = %s AND name = %s AND type = %s", (userId, name, categoryType))
+    cursor.execute("SELECT id FROM categories WHERE user_id = %s AND name = %s AND type = %s", (userId, name, categoryType))
     category = cursor.fetchone()
     cursor.close()
     return category
@@ -245,8 +245,8 @@ def categories():
         name = request.form["name"].strip()
         categoryType = request.form["type"]
 
-        if len(name) < 1 or len(name) > 50:
-            flash("Name must be between 1 and 50 characters", "danger")
+        if len(name) < 3 or len(name) > 50:
+            flash("Name must be between 3 and 50 characters", "danger")
 
         elif categoryType not in ("income", "expense"):
             flash("Invalid category: choose income or expense.", "danger")
@@ -293,6 +293,74 @@ def delete_category(category_id):
     cursor.close()
     return redirect(url_for("categories"))
 
+
+# # #
+#     TRANSACTIONS (order: VIEW/ADD, DELETE)
+# # #
+@app.route("/transactions", methods = ["GET", "POST"])
+def transactions():
+    if "user_id" not in session:
+        flash("You need to be logged in to see this page.", "danger")
+        return redirect(url_for("login"))
+
+    userId = session["user_id"]
+
+    if request.method == "POST":
+        description = request.form["description"].strip()
+        categoryId = request.form["category_id"]
+        amount = validAmount(request.form["amount"])
+        transactionDate = validDate(request.form["transaction_date"])
+
+        if amount is None or transactionDate is None:
+            flash("Enter a valid amount and date.", "danger")
+
+        elif len(description) < 1 or len(description) > 255:
+            flash("Invalid description length.", "danger")
+
+        elif not categoryBelongsToUser(categoryId, userId):
+            flash("This category does not belong to you.", "danger")
+
+        else:
+            #NOTE: amount_base = amount until currency converter is implemented
+
+            cursor = mysql.connection.cursor()
+            cursor.execute("INSERT INTO transactions (user_id, category_id, description, amount, currency, amount_base, transaction_date)"
+                           "VALUES (%s, %s, %s, %s, %s, %s, %s)", (userId, categoryId, description, amount, CURRENCY, amount, transactionDate))
+            mysql.connection.commit()
+            cursor.close()
+            flash("Transaction added.", "danger")
+
+        return redirect(url_for("transactions"))
+
+    
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT t.id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category, c.type"
+                   "FROM transactions t JOIN categories c ON c.id = t.category_id"
+                   "WHERE t.user_id = %s ORDER BY t.transaction_date DESC, t.id DESC LIMIT 100", (userId,))
+    rows = cursor.fetchall()
+    cursor.execute("SELECT id, name, type FROM categories WHERE user_id = %s ORDER BY type, name", (userId,))
+    categoryRows = cursor.fetchall()
+    cursor.close()
+
+    return render_template("transactions.html", transactions=rows, categories=categoryRows, base_currency=CURRENCY, today=date.today().isoformat())
+
+@app.route("/transactions/<int:transaction_id>/delete", methods=["POST"])
+def delete_transaction(transaction_id):
+    if "user_id" not in session:
+        flash("You need to be logged in to see this page.","danger")
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("DELETE FROM transactions WHERE id = %s AND user_id =%s", (transaction_id, session["user_id"]))
+    mysql.connection.commit()
+
+    if cursor.rowcount == 0:
+        flash("Transaction not found", "danger")
+    else:
+        flash("Transaction deleted.", "success")
+
+    cursor.close()
+    return redirect(url_for("transactions"))
 
 if __name__ == "__main__":
     app.run(debug=True, host = "0.0.0.0", port=5000)
