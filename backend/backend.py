@@ -544,7 +544,7 @@ if __name__ == "__main__":
 
 
 #RETRIEVE INDIVIDUAL TRANSACTIONS:
-@app.route("/api/transactions/<int:transaction_id", methods=["GET"])
+@app.route("/api/transactions/<int:transaction_id>", methods=["GET"])
 def api_get_transaction(transaction_id):
     if "user_id" not in session:
         return jsonify({"error": "Login required"}), 401
