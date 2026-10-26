@@ -22,10 +22,25 @@
     background-color: black;
  } 
 
-
-
-
-
 body{
     font-family:'Times New Roman', Times, serif
+}
+
+
+/*Chart Styling
+*/
+
+/*Centers the charts and puts them side by side */
+.charts {
+    display: flex;
+    flex-wrap: wrap;        
+    justify-content: center;
+    gap: 20px;
+}
+
+.chartBox {
+    position: relative;
+    flex: 1 1 300px;        
+    max-width: 450px;
+    height: 300px;
 }

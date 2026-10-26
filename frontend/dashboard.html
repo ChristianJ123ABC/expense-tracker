@@ -13,8 +13,8 @@
 -->
 
 {% extends "base.html" %}
-{% block title %}Login{% endblock %}
-{% block body_id %}login{% endblock %}
+{% block title %}Dashboard{% endblock %}
+{% block body_id %}Dashboard{% endblock %}
 
 {% block content %}
    {% if balance < 0 %}
@@ -24,7 +24,7 @@
     <h1>Dashboard</h1>
     
 
-    <h2>Current Month's Stats: {{ month_label }}</p>
+    <h2>Current Month's Stats: {{ month_label }}</h2>
     
     <p>Income: {{ "%.2f" |format(income) }} {{ base_currency }}</p>
     <p>Expenses: {{ "%.2f" |format(expenses) }} {{ base_currency }}</p>
@@ -46,7 +46,35 @@
         {% endfor %}
     </table>
 
-    <br><br>
-   
-    <h2>Getting started? Do this journey: Click the menu bar (top right of screen) -> Add category -> Add Transaction -> Go back to dashboard to see updated stats</h2>
+    <br><br><br>
+
+    
+        <!-- Graphs for representing the expense data-->
+    <div class = "charts">
+        <div class = "chartBox">
+            {% if by_category %}
+            <canvas id="categoryChart"
+                    data-names='{{ by_category | map(attribute="name") | list | tojson }}'
+                    data-totals='{{ by_category | map(attribute="total") | map("float") | list | tojson }}'>
+            </canvas>
+            {% else %}
+                <p>No expenses this month yet.</p>
+            {% endif %}
+        </div>
+        <div class = "chartBox">
+            <canvas id="monthChart"
+                    data-label='{{ month_label | tojson }}'
+                    data-income='{{ income | float | tojson }}'
+                    data-expenses='{{ expenses | float | tojson }}'
+                    data-currency='{{ base_currency | tojson}}'>
+            </canvas>
+        </div>
+    </div>
+{% endblock %}
+
+
+
+{% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 {% endblock %}
