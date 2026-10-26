@@ -469,9 +469,6 @@ def edit_transaction(transaction_id):
 # FUNCTIONS FOR VALIDATION
 ###
 
-#Joins transactions and categories together on every query 
-TRANSACTION_SELECT = """SELECT t.id, t.category_id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category
-                        FROM transactions t JOIN categories c ON c.id = t.category_id """
 
 #Turns text into decimal / float (xx.xx) and the date into YYYY-MM-DD
 def transactionToText(row):
@@ -509,7 +506,9 @@ def api_list_transactions():
     cursor = mysql.connection.cursor()
 
     #Retrieves the 100 newest transactions that have been placed into the database per user
-    cursor.execute(TRANSACTION_SELECT + "WHERE t.user_id = %s ORDER BY t.transaction_date DESC, t.id DESC LIMIT 100", (session["user_id"],))
+    cursor.execute("""SELECT t.id, t.category_id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category
+                    FROM transactions t JOIN categories c ON c.id = t.category_id
+                    WHERE t.user_id = %s ORDER BY t.transaction_date DESC, t.id DESC LIMIT 100""", (session["user_id"],))
     rows = cursor.fetchall()
     cursor.close()
 
@@ -542,3 +541,22 @@ def api_create_transaction():
 
 if __name__ == "__main__":
     app.run(debug=True, host = "0.0.0.0", port=5000)
+
+
+#RETRIEVE INDIVIDUAL TRANSACTIONS:
+@app.route("/api/transactions/<int:transaction_id", methods=["GET"])
+def api_get_transaction(transaction_id):
+    if "user_id" not in session:
+        return jsonify({"error": "Login required"}), 401
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("""SELECT t.id, t.category_id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category
+                    FROM transactions t JOIN categories c ON c.id = t.category_id
+                    WHERE t.id = %s AND t.user_id = %s""", (transaction_id, session["user_id"]))
+    row = cursor.fetchone()
+    cursor.close()
+
+    if row is None:
+        return jsonify({"error": "Transaction not found"}), 404
+
+    return jsonify(transactionToText(row))
