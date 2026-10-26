@@ -21,10 +21,11 @@
 #https://www.geeksforgeeks.org/python/use-jsonify-instead-of-json-dumps-in-flask/
 #https://flask.palletsprojects.com/en/stable/patterns/javascript/
 #https://wittgeo.medium.com/building-an-expense-tracker-with-python-and-javascript-9276a9f7ba4c
+#CRUD Exercise Week 12 Moodle (Deployment) https://github.com/ChristianJ123ABC/crud
 
-import os, random, werkzeug, gunicorn, re, datetime, calendar
+import os, random, werkzeug, gunicorn, re, datetime, calendar, logging
 from datetime import date, datetime
-from flask import Flask, render_template, redirect, url_for, request, session, flash 
+from flask import Flask, render_template, redirect, url_for, request, session, flash, jsonify
 from flask_mysqldb import MySQL 
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -460,12 +461,84 @@ def edit_transaction(transaction_id):
 
 
 # - - - - -  -
-# REST API CALLS FOR TRANSACTIONS (ORDER: FUNCTIONS, LIST/CREATE, GET/UPDATE/DELETE)
+# REST API CALLS FOR TRANSACTIONS (ORDER: FUNCTIONS, POST, GET/UPDATE/DELETE)
 # (GET = RECENT TRANSACTIONS, POST = ADD TRANSACTION VIA POSTMAN/CURL)
 # - - - - -  -
 
+###
+# FUNCTIONS FOR VALIDATION
+###
+
+#Joins transactions and categories together on every query 
+TRANSACTION_SELECT = """SELECT t.id, t.category_id, t.description, t.amount, t.currency, t.transaction_date, c.name AS category
+                        FROM transactions t JOIN categories c ON c.id = t.category_id """
+
+#Turns text into decimal / float (xx.xx) and the date into YYYY-MM-DD
+def transactionToText(row):
+    return {"id": row["id"], "category_id": row["category_id"], "category": row["category"],
+            "description": row["description"], "amount": str(row["amount"]), "currency": row["currency"],
+            "date": row["transaction_date"].isoformat()}
 
 
+def checkTransaction(data,userId):
+    if not isinstance(data, dict):
+        return None, "Send as JSON"
+
+    description = str(data.get("description", "")).strip()
+    categoryId = data.get("category_id")
+    amount = validAmount(str(data.get("amount", "")))
+    transactionDate = validDate(str(data.get("transaction_date","")))
+
+    if amount is None or transactionDate is None:
+        return None, "Enter a valid amount + date"
+    if len(description) < 1 or len(description > 255):
+        return None, "Invalid description length"
+    if not categoryBelongsToUser(categoryId, userId):
+        return None, "This category does not belong to you"
+
+    return (description, categoryId, amount, transactionDate), None
+
+###
+#   GET TRANSACTIONS VIA API
+###
+@app.route("/api/transactions", methods=["GET"])
+def api_list_transactions():
+    if "user_id" not in session:
+        return jsonify({"error": "Login required"})
+
+    cursor = mysql.connection.cursor()
+
+    #Retrieves the 100 newest transactions that have been placed into the database per user
+    cursor.execute(TRANSACTION_SELECT + "WHERE t.user_id = %s ORDER BY t.transaction_date DESC, t.id DESC LIMIT 100", (session["user_id"],))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return jsonify([transactionToText(row) for row in rows])
+
+#POST: POST /api/transactions
+@app.route("/api/transactions", methods=["POST"])
+def api_create_transaction():
+    if "user_id" not in session:
+        return jsonify({"error": "Login required"}), 401
+
+    userId = session["user_id"]
+    values, error = checkTransaction(request.get_json(silent=True), userId)  #silent=True gives None instead of crashing on bad JSON
+
+    if error:
+        return jsonify({"error": error}), 400
+
+    description, categoryId, amount, transactionDate = values
+
+    #NOTE: amount_base = amount until currency converter is implemented
+    cursor = mysql.connection.cursor()
+    cursor.execute("INSERT INTO transactions (user_id, category_id, description, amount, currency, amount_base, transaction_date)"
+                   "VALUES (%s, %s, %s, %s, %s, %s, %s)", (userId, categoryId, description, amount, CURRENCY, amount, transactionDate))
+    mysql.connection.commit()
+    newId = cursor.lastrowid
+    cursor.close()
+
+    logging.info("API: user %s created transaction %s", userId, newId)
+    return jsonify({"id": newId}), 201
 
 if __name__ == "__main__":
     app.run(debug=True, host = "0.0.0.0", port=5000)
