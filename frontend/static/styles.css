@@ -22,8 +22,53 @@
     background-color: black;
  } 
 
-body{
-    font-family:'Times New Roman', Times, serif
+.navbar{
+    border-radius: 20px;
+}
+
+body {
+    font-family:Verdana, Geneva, Tahoma, sans-serif;
+    background-color: #eee1e1d0;
+    color: #5e5c5c;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+p,td,span{
+    color: black;
+}
+
+form {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #616a6e;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: #5f6262;
+}
+
+a {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: #f4eeee;
 }
 
 

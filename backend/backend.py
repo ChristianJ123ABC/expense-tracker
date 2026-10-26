@@ -16,6 +16,11 @@
 #https://www.youtube.com/watch?v=xzUpX6eiOiQ
 
 
+#API / REST
+#Flask Documentation: https://flask.palletsprojects.com/en/stable/api/
+#https://www.geeksforgeeks.org/python/use-jsonify-instead-of-json-dumps-in-flask/
+#https://flask.palletsprojects.com/en/stable/patterns/javascript/
+#https://wittgeo.medium.com/building-an-expense-tracker-with-python-and-javascript-9276a9f7ba4c
 
 import os, random, werkzeug, gunicorn, re, datetime, calendar
 from datetime import date, datetime
@@ -130,7 +135,14 @@ def monthTotal(userId, categoryType):
     cursor.close()
     return row["total"] or 0 #0 is for no rows available
 
+#Turns a month into the first and last day of that month
+def monthRange(text):
+    firstDay = datetime.strptime(text, "%Y-%m").date()
+    if firstDay is None:
+        return None
 
+    lastDay = firstDay.replace(day=calendar.monthrange(firstDay.year, firstDay.month)[1])
+    return firstDay, lastDay
 
 
 
@@ -445,6 +457,15 @@ def edit_transaction(transaction_id):
     cursor.close()
 
     return render_template("edit_transaction.html", transaction=transaction, categories=categoryRows, base_currency=CURRENCY)
+
+
+# - - - - -  -
+# REST API CALLS FOR TRANSACTIONS (ORDER: FUNCTIONS, LIST/CREATE, GET/UPDATE/DELETE)
+# (GET = RECENT TRANSACTIONS, POST = ADD TRANSACTION VIA POSTMAN/CURL)
+# - - - - -  -
+
+
+
 
 if __name__ == "__main__":
     app.run(debug=True, host = "0.0.0.0", port=5000)
