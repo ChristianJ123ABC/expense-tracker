@@ -477,6 +477,7 @@ def transactionToText(row):
             "date": row["transaction_date"].isoformat()}
 
 
+#Validation for transaction JSON
 def checkTransaction(data,userId):
     if not isinstance(data, dict):
         return None, "Send as JSON"
